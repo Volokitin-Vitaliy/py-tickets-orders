@@ -17,7 +17,7 @@ from cinema.serializers import (
     MovieSessionListSerializer,
     MovieDetailSerializer,
     MovieSessionDetailSerializer,
-    MovieListSerializer, OrderListSerializer,
+    MovieListSerializer, OrderListSerializer, OrderCreateSerializer,
 )
 
 
@@ -113,8 +113,12 @@ class OrderPagination(PageNumberPagination):
 
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
-    serializer_class = OrderListSerializer
     pagination_class = OrderPagination
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return OrderCreateSerializer
+        return OrderListSerializer
 
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user).prefetch_related(

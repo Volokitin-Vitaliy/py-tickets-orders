@@ -113,6 +113,37 @@ class TicketListSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class TicketCreateSerializer(serializers.ModelSerializer):
+    movie_session = serializers.PrimaryKeyRelatedField(
+        queryset=MovieSession.objects.all()
+    )
+
+    class Meta:
+        model = Ticket
+        fields = ("row", "seat", "movie_session")
+
+    def validate(self, attrs):
+        if not (1 <= attrs["row"] <= attrs["movie_session"].cinema_hall.rows):
+            raise serializers.ValidationError(
+                {"row": "Row number out of range."}
+            )
+        if not (
+                1
+                <= attrs["seat"]
+                <= attrs["movie_session"].cinema_hall.seats_in_row
+        ):
+            raise serializers.ValidationError(
+                {"seat": "Seat number out of range."}
+            )
+        if Ticket.objects.filter(
+            movie_session=attrs["movie_session"],
+            row=attrs["row"],
+            seat=attrs["seat"],
+        ).exists():
+            raise serializers.ValidationError("This seat is already taken.")
+        return attrs
+
+
 class MovieSessionDetailSerializer(MovieSessionSerializer):
     movie = MovieListSerializer(many=False, read_only=True)
     cinema_hall = CinemaHallSerializer(many=False, read_only=True)
@@ -127,7 +158,15 @@ class MovieSessionDetailSerializer(MovieSessionSerializer):
 
 
 class OrderListSerializer(serializers.ModelSerializer):
-    tickets = TicketListSerializer(many=True, read_only=False)
+    tickets = TicketListSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Order
+        fields = ("id", "tickets", "created_at")
+
+
+class OrderCreateSerializer(serializers.ModelSerializer):
+    tickets = TicketCreateSerializer(many=True)
 
     class Meta:
         model = Order
